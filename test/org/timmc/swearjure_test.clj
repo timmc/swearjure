@@ -3,6 +3,9 @@
   (:use clojure.test
         org.timmc.swearjure))
 
+(deftest naming
+  (is (= (scope-name* '[foo bar baz]) "foo-bar-baz")))
+
 (deftest literals
   (are [i o] (= (compile-number i) o)
        0 '(+)

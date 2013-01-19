@@ -9,7 +9,19 @@
 
 ;; TODO: deref, var, quote
 (def alpha-ops "Call-position symbols that we can translate."
-  '#{if vec concat inc dec})
+  '{if ::if
+    vec ::vec
+    concat ::concat
+    inc ::inc
+    dec ::dec})
+
+(defn scope-name*
+  [scope]
+  (apply str (interpose \- (map name scope))))
+
+(defn scope-name
+  [scope]
+  (gensym (symbol (str (scope-name* scope) \_))))
 
 (defn compile-number
   [n]
@@ -27,7 +39,7 @@
 
         (sequential? form)
         (cond (empty? form) :lit
-              (symbol? (first form)) (keyword (first form)))))
+              (symbol? (first form)) (alpha-ops (first form)))))
 
 (defmulti ^:private c-form "Slightly more raw form of compile-form."
   (fn [_ form] (form-dispatch form)))
@@ -61,6 +73,25 @@ body."
     {:scope scope
      :body (into {} (map vector (:body cks) (:body cvs)))
      :helpers (merge (:helpers cks) (:helpers cvs))}))
+
+(declare compile-fn)
+
+(defmethod c-form ::if [scope form]
+  (let [[_ [op a b] then else] form
+        ctest-a (compile-form (conj scope 'ifg1) a)
+        ctest-b (compile-form (conj scope 'ifg2) b)
+        then-name (scope-name (conj scope 'ift))
+        else-name (scope-name (conj scope 'iff))]
+    (assert (= '= op))
+    {:body `(::call-helper ({~a ~then-name} ~b ~else-name))
+     :helpers {then-name (compile-fn then-name then)
+               else-name (compile-fn else-name else)}}))
+
+;; TODO: lexicals will need to be conveyed somehow
+(defn compile-fn
+  [name body]
+  ;; TODO
+  (compile-form [name] body))
 
 ;; This is what an input should look like.
 #_
