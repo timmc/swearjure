@@ -1,6 +1,18 @@
 (ns org.timmc.swearjure
   (:refer-clojure :exclude (compile)))
 
+;; Current approach:
+;; - A Swearjure program is specified as a quoted letfn block that calls one
+;;   of its functions. The block should be eval-able as regular Clojure.
+;; - The compiler walks into each function and splits it into a main body
+;;   along with zero or more helper functions. (Currently only used for
+;;   delaying evaluation in if= blocks.
+;; - Helper fns are identified by gensyms.
+;; - A second pass will put all the original and helper fns into a vector
+;;   and walk into the fn bodies to convert symbol-based calls such as
+;;   (main 1 2) into vector calls such as ((% 5) % 1 2).
+;; - Unsolved problem: Representing and outputting reader sugar.
+
 (defn transpose
   [xs]
   (if (empty? xs)
