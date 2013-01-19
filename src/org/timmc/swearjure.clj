@@ -13,11 +13,24 @@
 ;;   (main 1 2) into vector calls such as ((% 5) % 1 2).
 ;; - Unsolved problem: Representing and outputting reader sugar.
 
+;;;; Utilities
+
 (defn transpose
   [xs]
   (if (empty? xs)
     []
     (apply map vector xs)))
+
+;;;; Form-builders
+
+(def ev-true '(= :*))
+(def ev-false '(= :+ :-))
+(def ev-nil '({} :*))
+(defn wrap-boolean
+  [form]
+  (list {ev-false ev-false, ev-nil ev-false} form ev-true))
+
+;;;; --
 
 ;; TODO: deref, var, quote
 (def alpha-ops "Call-position symbols that we can translate."
@@ -27,13 +40,17 @@
     inc ::inc
     dec ::dec})
 
-(defn scope-name*
-  [scope]
-  (apply str (interpose \- (map name scope))))
+(defn unique
+  [x]
+  (gensym (symbol (str x \_))))
 
 (defn scope-name
   [scope]
-  (gensym (symbol (str (scope-name* scope) \_))))
+  (apply str (interpose \- (map name scope))))
+
+(defn fn-name
+  [scope]
+  (unique (scope-name scope)))
 
 (defn compile-number
   [n]
@@ -90,15 +107,20 @@ body."
 (declare compile-fn)
 
 (defmethod c-form ::if [scope form]
-  (let [[_ [op a b] then else] form
-        ctest-a (compile-form (conj scope 'ifg1) a)
-        ctest-b (compile-form (conj scope 'ifg2) b)
-        then-name (scope-name (conj scope 'ift))
-        else-name (scope-name (conj scope 'iff))]
-    (assert (= '= op))
-    {:body `(::call-helper ({~a ~then-name} ~b ~else-name))
-     :helpers {then-name (compile-fn then-name then)
-               else-name (compile-fn else-name else)}}))
+  (let [[_ test then else] form
+        ctest (compile-form (conj scope 'ifg) test)
+        then-name (fn-name (conj scope 'ift))
+        else-name (fn-name (conj scope 'iff))
+        cthen (compile-fn then-name then)
+        celse (compile-fn else-name else)]
+    {:body `(::call-helper ({~ev-true ~then-name}
+                            ~(wrap-boolean (:body ctest))
+                            ~else-name))
+     :helpers (merge {then-name (:body cthen)
+                      else-name (:body celse)}
+                     (:helpers ctest)
+                     (:helpers cthen)
+                     (:helpers celse))}))
 
 (defmethod c-form ::inc [scope form]
   (let [[_ arg] form
