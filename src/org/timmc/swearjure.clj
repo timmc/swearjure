@@ -39,7 +39,8 @@
 
         (sequential? form)
         (cond (empty? form) :lit
-              (symbol? (first form)) (alpha-ops (first form)))))
+              (alpha-ops (first form)) (alpha-ops (first form))
+              :else :lit)))
 
 (defmulti ^:private c-form "Slightly more raw form of compile-form."
   (fn [_ form] (form-dispatch form)))
@@ -86,6 +87,18 @@ body."
     {:body `(::call-helper ({~a ~then-name} ~b ~else-name))
      :helpers {then-name (compile-fn then-name then)
                else-name (compile-fn else-name else)}}))
+
+(defmethod c-form ::inc [scope form]
+  (let [[_ arg] form
+        {:keys [body helpers]} (compile-form scope arg)]
+    {:body (list '+ body '(*))
+     :helpers helpers}))
+
+(defmethod c-form ::dec [scope form]
+  (let [[_ arg] form
+        {:keys [body helpers]} (compile-form scope arg)]
+    {:body (list '- body '(*))
+     :helpers helpers}))
 
 ;; TODO: lexicals will need to be conveyed somehow
 (defn compile-fn

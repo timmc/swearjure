@@ -27,3 +27,10 @@
            {:body '{:_ [(+ (*))]}
             :helpers {}
             :scope '[top]}))))
+
+(deftest convenience
+  (testing "inc and dec"
+    (is (= (compile-form [] '[(inc (dec foo))])
+           {:body '[(+ (- foo (*)) (*))]
+            :helpers {}
+            :scope []}))))
