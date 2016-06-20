@@ -50,6 +50,12 @@
 
 ;;;; --
 
+;; A Sugar form represents a reader macro or special form that must be
+;; printed specially. `which` is a keyword naming the form
+;; e.g. `:splicing-unquote` and body is the expression the sugar
+;; applies to.
+(defrecord Sugar [which body])
+
 ;; TODO: deref, var, quote
 (def alpha-ops "Call-position symbols that we can translate."
   '{if ::if
@@ -150,6 +156,12 @@ body."
   (let [[_ arg] form
         {:keys [body helpers]} (compile-form scope arg)]
     {:body (list '- body '(*))
+     :helpers helpers}))
+
+(defmethod c-form ::vec [scope form]
+  (let [[_ arg] form
+        {:keys [body helpers]} (compile-form scope arg)]
+    {:body (Sugar. :syntax-quote [(Sugar. :splicing-unquote body)])
      :helpers helpers}))
 
 ;; TODO: lexicals will need to be conveyed somehow

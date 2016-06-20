@@ -50,4 +50,11 @@
                               'top-iff_17))
             :helpers {'top-ift_17 '[:then (+ (*))]
                       'top-iff_17 '[:else (+ (*) (*))]}
+            :scope '[top]})))
+  (testing "vec"
+    (is (= (s/compile-form '[top] '(vec [:+ :- :_]))
+           {:body (s/Sugar :syntax-quote
+                           [(s/->Sugar :splicing-unquote
+                                       [:+ :- :_])])
+            :helpers {}
             :scope '[top]}))))
