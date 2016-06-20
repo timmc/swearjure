@@ -3,15 +3,33 @@
 
 ;; Current approach:
 ;; - A Swearjure program is specified as a quoted letfn block that calls one
-;;   of its functions. The block should be eval-able as regular Clojure.
-;; - The compiler walks into each function and splits it into a main body
-;;   along with zero or more helper functions. (Currently only used for
-;;   delaying evaluation in if= blocks.
+;;   of its functions. The block should be eval-able as regular Clojure,
+;;   with the support of these "standard library" adapter functions:
+;;     - `fncall`: Call first argument with remaining arguments. Use to mark
+;;       a call to another top-level letfn function (since that needs to be
+;;       compiled differently.)
+;; - The compiler performs the following transformations in some order:
+;;     - Extract helper functions such as for delayed evaluation (e.g. `if`)
+;;     - Build a map or vector of top-level letfn functions indexed
+;;       numerically (including extracted helper fns)
+;;     - Replace calls to top-level letfn functions with lookups in the fn
+;;       map and calls that pass in that map as the first argument
+;;     - Replace references to arguments with positional lookups in the
+;;       vec'd restarg list
+;;     - Convert supported functions in call position into swearjure
+;;       equivalents (e.g. `(vec ___)` becomes `[~@___]`, with the splice
+;;       represented as a Sugar object)
+;;     - Convert numeric literals into composed arithmetic operations
+;;     - Emit the transformed code as a string, including emitting Sugar
+;;       as the reader syntax they represent (e.g. the `#(` forms for fns)
 ;; - Helper fns are identified by gensyms.
 ;; - A second pass will put all the original and helper fns into a vector
 ;;   and walk into the fn bodies to convert symbol-based calls such as
 ;;   (main 1 2) into vector calls such as ((% 5) % 1 2).
-;; - Unsolved problem: Representing and outputting reader sugar.
+;; - Unsolved problems:
+;;     - Rewriting and conveyance of arg references inside clauses
+;;       that must be made into separate helper fns (can all the
+;;       arguments just be copied over?) e.g. (if %1 %2 %3)
 
 ;;;; Utilities
 
